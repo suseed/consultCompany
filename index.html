@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>기업고객 상담 DB</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+    body{font-family:Arial,Helvetica,sans-serif;margin:20px;background:#f7f9fc}
+    h1{margin-bottom:10px}
+    table{width:100%;border-collapse:collapse;background:#fff}
+    th,td{border:1px solid #ccc;padding:6px 8px;text-align:left;font-size:14px}
+    th{background:#e9edf5}
+    tr:nth-child(even){background:#f5f7fb}
+    .controls{margin:10px 0}
+    .controls button{margin-right:6px;padding:6px 12px;border:none;border-radius:4px;background:#2d6cdf;color:#fff;cursor:pointer;font-size:14px}
+    .controls button:hover{opacity:.9}
+    .del-btn{background:none;border:none;color:#e00;font-size:16px;cursor:pointer}
+    @media print{
+        .controls,form{display:none}
+        body{margin:0}
+    }
+</style>
+</head>
+<body>
+<h1>기업고객 상담 DB</h1>
+
+<form id="entryForm" autocomplete="off">
+    <table>
+        <tr>
+            <td><input placeholder="기업명"          id="기업명"></td>
+            <td><input placeholder="업종"            id="업종"></td>
+            <td><input placeholder="마케터"          id="마케터"></td>
+            <td><input placeholder="담당자"          id="담당자"></td>
+            <td><input placeholder="관심과목"        id="관심과목"></td>
+            <td><input placeholder="신청과목"        id="신청과목"></td>
+            <td><input placeholder="상담내용"        id="상담내용"></td>
+            <td><input type="datetime-local"         id="상담일시"></td>
+            <td><input type="datetime-local"         id="개설희망일시"></td>
+            <td><button type="button" onclick="addRow()">추가</button></td>
+        </tr>
+    </table>
+</form>
+
+<div class="controls">
+    <button onclick="saveJSON()">JSON 저장</button>
+    <button onclick="document.getElementById('jsonInput').click()">JSON 불러오기</button>
+    <button onclick="exportCSV()">CSV 저장</button>
+    <button onclick="window.print()">인쇄·PDF</button>
+    <input type="file" id="jsonInput" accept=".json" style="display:none" onchange="loadJSON(event)">
+</div>
+
+<table id="dataTable">
+    <thead>
+        <tr>
+            <th>기업명</th><th>업종</th><th>마케터</th><th>담당자</th>
+            <th>관심과목</th><th>신청과목</th><th>상담내용</th>
+            <th>상담일시</th><th>개설 희망일시</th><th>액션</th>
+        </tr>
+    </thead>
+    <tbody></tbody>
+</table>
+
+<script>
+let data = JSON.parse(localStorage.getItem('corpCounselDB')||'[]');
+refreshTable();
+
+function addRow(){
+    const f = id=>document.getElementById(id).value.trim();
+    const row = {
+        기업명:f('기업명'), 업종:f('업종'), 마케터:f('마케터'), 담당자:f('담당자'),
+        관심과목:f('관심과목'), 신청과목:f('신청과목'), 상담내용:f('상담내용'),
+        상담일시:f('상담일시'), 개설희망일시:f('개설희망일시')
+    };
+    if(!row.기업명) { alert('기업명은 필수입니다!'); return; }
+    data.push(row);
+    saveLocal(); refreshTable(); document.getElementById('entryForm').reset();
+}
+
+function refreshTable(){
+    const tb=document.querySelector('#dataTable tbody');
+    tb.innerHTML='';
+    data.forEach((r,i)=>{
+        const tr=tb.insertRow();
+        ["기업명","업종","마케터","담당자","관심과목","신청과목","상담내용","상담일시","개설희망일시"].forEach(k=>{
+            tr.insertCell().textContent=r[k]||'';
+        });
+        const action=tr.insertCell();
+        action.innerHTML='<button class="del-btn" title="삭제" onclick="delRow('+i+')">🗑️</button>';
+    });
+}
+
+function delRow(idx){
+    if(confirm('삭제하시겠습니까?')){
+        data.splice(idx,1);
+        saveLocal(); refreshTable();
+    }
+}
+
+function saveLocal(){
+    localStorage.setItem('corpCounselDB',JSON.stringify(data));
+}
+
+function saveJSON(){
+    const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+    downloadBlob(blob,'corpCounselDB_'+dateStamp()+'.json');
+}
+
+function loadJSON(e){
+    const file=e.target.files[0];
+    if(!file) return;
+    const reader=new FileReader();
+    reader.onload=evt=>{
+        try{
+            data=JSON.parse(evt.target.result);
+            saveLocal(); refreshTable();
+        }catch(err){
+            alert('JSON 형식이 올바르지 않습니다');
+        }
+    };
+    reader.readAsText(file);
+}
+
+function exportCSV(){
+    const cols=["기업명","업종","마케터","담당자","관심과목","신청과목","상담내용","상담일시","개설희망일시"];
+    const lines=[cols.join(',')];
+    data.forEach(r=>{
+        lines.push(cols.map(k=>'"'+(r[k]||'').replace(/"/g,'""')+'"').join(','));
+    });
+    const blob=new Blob([lines.join('\n')],{type:'text/csv'});
+    downloadBlob(blob,'corpCounselDB_'+dateStamp()+'.csv');
+}
+
+function downloadBlob(blob,filename){
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url;
+    a.download=filename;
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+function dateStamp(){
+    const d=new Date();
+    return d.toISOString().slice(0,10).replace(/-/g,'');
+}
+</script>
+</body>
+</html>
